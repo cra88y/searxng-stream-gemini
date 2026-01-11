@@ -19,7 +19,9 @@ class SXNGPlugin(Plugin):
             preference_section="general", 
         )
         self.api_key = os.getenv('GEMINI_API_KEY')
-        self.model = os.getenv('GEMINI_MODEL', 'gemini-1.5-flash')
+        self.model = os.getenv('GEMINI_MODEL', 'gemini-3-flash-preview')
+        self.max_tokens = int(os.getenv('GEMINI_MAX_TOKENS', 500))
+        self.temperature = float(os.getenv('GEMINI_TEMPERATURE', 0.2))
 
     def init(self, app):
         @app.route('/gemini-stream', methods=['POST'])
@@ -36,8 +38,16 @@ class SXNGPlugin(Plugin):
                 path = f"/v1beta/models/{self.model}:streamGenerateContent?key={self.api_key}"
                 try:
                     conn = http.client.HTTPSConnection(host, context=ssl.create_default_context())
-                    prompt = f"Using these SEARCH RESULTS, answer the USER QUERY concisely (<4 sentences). If results are irrelevant, say so.\n\nRESULTS:\n{context_text}\n\nUSER QUERY: {q}"
-                    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": 400, "temperature": 0.3}}
+                    prompt = (
+                        f"SYSTEM: Answer USER QUERY by integrating SEARCH RESULTS with expert knowledge.\n"
+                        f"HIERARCHY: Use RESULTS for facts/data. Use KNOWLEDGE for context/synthesis.\n"
+                        f"CONSTRAINTS: <4 sentences | Dense information | Complete thoughts.\n"
+                        f"FALLBACK: If results are empty, answer from knowledge but note the lack of sources.\n\n"
+                        f"SEARCH RESULTS:\n{context_text}\n\n"
+                        f"USER QUERY: {q}\n\n"
+                        f"ANSWER:"
+                    )
+                    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": self.max_tokens, "temperature": self.temperature}}
                     conn.request("POST", path, body=json.dumps(payload), headers={"Content-Type": "application/json"})
                     res = conn.getresponse()
                     
