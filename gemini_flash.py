@@ -34,12 +34,15 @@ class SXNGPlugin(Plugin):
             t = request.args.get('token')
             q = request.args.get('q', '')
             
-            # Maintenance
+            # Maintenance: handle dict structure
             current_time = time.time()
-            self.tokens = {k: v for k, v in self.tokens.items() if v > current_time}
+            self.tokens = {k: v for k, v in self.tokens.items() if v['expires'] > current_time}
             
             if t not in self.tokens or not self.api_key:
                 abort(403)
+            
+            token_data = self.tokens[t]
+            context_text = token_data.get('context', '')
             del self.tokens[t]
 
             def generate():
@@ -48,37 +51,75 @@ class SXNGPlugin(Plugin):
                 try:
                     context = ssl.create_default_context()
                     conn = http.client.HTTPSConnection(host, context=context)
-                    conn.request("POST", path, body=json.dumps({"contents": [{"parts": [{"text": q}]}]}), 
+                    
+                    # RAG PROMPT
+                    prompt = f"""
+You are a concise search assistant. Use the provided SEARCH RESULTS to answer the USER QUERY.
+If the results don't contain the answer, use your knowledge but prioritize the results.
+Keep the answer under 4 sentences.
+
+SEARCH RESULTS:
+{context_text}
+
+USER QUERY: {q}
+"""
+                    payload = {
+                        "contents": [{"parts": [{"text": prompt}]}],
+                        "generationConfig": {
+                            "maxOutputTokens": 500,
+                            "temperature": 0.2 # Lower temperature for better factual accuracy
+                        }
+                    }
+                    
+                    conn.request("POST", path, body=json.dumps(payload), 
                                  headers={"Content-Type": "application/json"})
                     res = conn.getresponse()
                     
                     buffer = ""
                     for chunk in res:
+                        if not chunk: continue
                         buffer += chunk.decode('utf-8')
+                        
                         while True:
                             start = buffer.find('{')
-                            if start == -1: break
-                            brace_count, end = 0, -1
+                            if start == -1: 
+                                buffer = "" # Clear garbage
+                                break
+                                
+                            brace_count = 0
+                            end = -1
                             for i in range(start, len(buffer)):
                                 if buffer[i] == '{': brace_count += 1
                                 elif buffer[i] == '}': brace_count -= 1
                                 if brace_count == 0:
                                     end = i + 1
                                     break
-                            if end == -1: break 
+                            
+                            if end == -1: break # Wait for more data
+                            
                             try:
-                                text = json.loads(buffer[start:end])['candidates'][0]['content']['parts'][0]['text']
-                                if text: 
-                                    yield text
-                                buffer = buffer[end:]
-                            except:
-                                buffer = buffer[end:]
+                                raw_json = buffer[start:end]
+                                data = json.loads(raw_json)
+                                parts = data.get('candidates', [{}])[0].get('content', {}).get('parts', [])
+                                for part in parts:
+                                    text = part.get('text', '')
+                                    if text:
+                                        yield text
+                            except Exception:
+                                pass
+                            
+                            buffer = buffer[end:]
                     conn.close()
                 except Exception as e:
                     logger.error(f"[{self.id}] Stream error: {e}")
                     yield f" [Error: {str(e)}]"
 
-            return Response(generate(), mimetype='text/plain')
+            return Response(generate(), mimetype='text/plain', headers={
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'X-Accel-Buffering': 'no'
+            })
 
         @app.route('/gemini.js')
         def g_script():
@@ -125,10 +166,23 @@ class SXNGPlugin(Plugin):
         if search.search_query.pageno > 1 or not self.active or not self.api_key:
             return results
 
-        tk = secrets.token_urlsafe(16)
-        self.tokens[tk] = time.time() + 90
+        # Extract context from top 5 search results for RAG
+        context_parts = []
+        raw_results = search.result_container.get_ordered_results()
+        for i, res in enumerate(raw_results[:5]):
+            title = res.get('title', 'No Title')
+            content = res.get('content', 'No Content')
+            context_parts.append(f"Source [{i+1}]: {title}\nSnippet: {content}")
         
-        logger.warning(f"[{self.id}] Injecting Answer for query: {search.search_query.query[:20]}...")
+        context_str = "\n\n".join(context_parts)
+        
+        tk = secrets.token_urlsafe(16)
+        self.tokens[tk] = {
+            "expires": time.time() + 90,
+            "context": context_str
+        }
+        
+        logger.debug(f"[{self.id}] Prepared RAG context for query: {search.search_query.query[:20]}...")
 
         # Encode query for the URL parameter in the script tag
         safe_query_param = urllib.parse.quote(search.search_query.query)
