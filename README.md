@@ -13,7 +13,7 @@ Set the following environment variables:
 
 ### Google Gemini
 - `GEMINI_API_KEY`: Your Google AI API key.
-- `GEMINI_MODEL`: Defaults to `gemini-1.5-flash`.
+- `GEMINI_MODEL`: Defaults to `gemma-3-27b-it`.
 
 ### OpenRouter / OpenAI / Ollama
 - `OPENROUTER_API_KEY`: Your API key.
