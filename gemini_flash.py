@@ -51,29 +51,35 @@ class SXNGPlugin(Plugin):
                     conn.request("POST", path, body=json.dumps(payload), headers={"Content-Type": "application/json"})
                     res = conn.getresponse()
                     
+                    if res.status != 200:
+                         yield f" [Error: {res.status} {res.reason} - {res.read().decode('utf-8')}]"
+                         return
+
+                    decoder = json.JSONDecoder()
                     buffer = ""
+                    
                     for chunk in res:
                         if not chunk: continue
                         buffer += chunk.decode('utf-8')
-                        while True:
-                            start = buffer.find('{')
-                            if start == -1: break
-                            brace_count, end = 0, -1
-                            for i in range(start, len(buffer)):
-                                if buffer[i] == '{': brace_count += 1
-                                elif buffer[i] == '}': brace_count -= 1
-                                if brace_count == 0:
-                                    end = i + 1
-                                    break
-                            if end == -1: break
+                        
+                        while buffer:
+                            buffer = buffer.lstrip()
+                            if not buffer: break
+                            
                             try:
-                                data = json.loads(buffer[start:end])
-                                candidates = data.get('candidates', [])
+                                obj, idx = decoder.raw_decode(buffer)
+                                candidates = obj.get('candidates', [])
                                 if candidates:
-                                    text = candidates[0]['content']['parts'][0]['text']
-                                    if text: yield text
-                            except: pass
-                            buffer = buffer[end:]
+                                    content = candidates[0].get('content', {})
+                                    parts = content.get('parts', [])
+                                    if parts:
+                                        text = parts[0].get('text', '')
+                                        if text: yield text
+                                
+                                buffer = buffer[idx:]
+                            except json.JSONDecodeError:
+                                break
+                                
                     conn.close()
                 except Exception as e:
                     yield f" [Error: {str(e)}]"
@@ -90,7 +96,6 @@ class SXNGPlugin(Plugin):
         context_list = [f"[{i+1}] {r.get('title')}: {r.get('content')}" for i, r in enumerate(raw_results[:6])]
         context_str = "\n".join(context_list)
 
-        # Base64 Encode to ensure HTML safety
         b64_context = base64.b64encode(context_str.encode('utf-8')).decode('utf-8')
         js_q = json.dumps(search.search_query.query)
 
@@ -109,7 +114,6 @@ class SXNGPlugin(Plugin):
             if (container && shell) {{ container.prepend(shell); shell.style.display = 'block'; }}
 
             try {{
-                // Decode context client-side
                 const ctx = new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
                 
                 const res = await fetch('/gemini-stream', {{
@@ -131,5 +135,5 @@ class SXNGPlugin(Plugin):
         }})();
         </script>
         '''
-        results.add(results.types.Answer(answer=Markup(html_payload)))
+        search.result_container.answers.add(results.types.Answer(answer=Markup(html_payload)))
         return results
