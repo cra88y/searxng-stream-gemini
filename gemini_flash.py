@@ -191,6 +191,9 @@ class SXNGPlugin(Plugin):
                     const box = document.getElementById('sxng-stream-box');
                     const data = document.getElementById('sxng-stream-data');
                     
+                    const container = document.getElementById('urls') || document.getElementById('main_results');
+                    if (container && box) {{ container.prepend(box); }}
+
                     try {{
                         const ctx = new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
                         const res = await fetch('/gemini-stream', {{
