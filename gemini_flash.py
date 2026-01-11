@@ -36,11 +36,13 @@ class SXNGPlugin(Plugin):
                 return Response("Error: Missing Key or Query", status=400)
 
             prompt = (
-                f"Answer concisely (<4 sentences) using the provided search results.\n"
-                f"Prioritize results for facts. If results are empty, use general knowledge.\n\n"
-                f"Results:\n{context_text}\n\n"
-                f"Query: {q}\n\n"
-                f"Answer:"
+                f"SYSTEM: Answer USER QUERY by integrating SEARCH RESULTS with expert knowledge.\n"
+                f"HIERARCHY: Use RESULTS for facts/data. Use KNOWLEDGE for context/synthesis.\n"
+                f"CONSTRAINTS: <4 sentences | Dense information | Complete thoughts.\n"
+                f"FALLBACK: If results are empty, answer from knowledge but note the lack of sources.\n\n"
+                f"SEARCH RESULTS:\n{context_text}\n\n"
+                f"USER QUERY: {q}\n\n"
+                f"ANSWER:"
             )
 
             def generate_gemini():
