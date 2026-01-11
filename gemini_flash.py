@@ -180,16 +180,8 @@ class SXNGPlugin(Plugin):
                     margin-left: 2px; vertical-align: middle;
                     animation: sxng-blink 1s step-end infinite;
                 }}
-                #sxng-stream-box {{
-                    max-height: 0;
-                    overflow: hidden;
-                    transition: max-height 0.4s ease-out;
-                }}
-                #sxng-stream-box.sxng-open {{
-                    max-height: 30em;
-                }}
             </style>
-            <article id="sxng-stream-box" class="answer" style="margin-bottom: 1rem;">
+            <article id="sxng-stream-box" class="answer" style="display:none; margin-bottom: 1rem;">
                 <p id="sxng-stream-data" style="white-space: pre-wrap; color: var(--color-result-description); font-size: 0.95rem;"></p>
             </article>
             <script>
@@ -227,10 +219,10 @@ class SXNGPlugin(Plugin):
                         if (chunk) {{
                             let text = chunk;
                             if (!started) {{
-                                text = text.replace(/^[\s.,;:!?]+/, '');
+                                text = text.replace(/^[\\s.,;:!?]+/, '');
                                 if (!text) continue;
                                 data.appendChild(cursor);
-                                box.classList.add('sxng-open');
+                                box.style.display = 'block';
                                 started = true; 
                             }}
                             cursor.before(text);
