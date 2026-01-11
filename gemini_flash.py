@@ -53,21 +53,18 @@ class SXNGPlugin(Plugin):
                     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": self.max_tokens, "temperature": self.temperature}}
                     conn.request("POST", path, body=json.dumps(payload), headers={"Content-Type": "application/json"})
                     res = conn.getresponse()
-                    
-                    if res.status != 200:
-                         return
+                    if res.status != 200: return
 
                     decoder = json.JSONDecoder()
                     buffer = ""
-                    
-                    for chunk in res:
-                        if not chunk: continue
+                    while True:
+                        chunk = res.read(128)
+                        if not chunk: break
                         buffer += chunk.decode('utf-8')
                         
                         while buffer:
                             buffer = buffer.lstrip()
                             if not buffer: break
-                            
                             try:
                                 obj, idx = decoder.raw_decode(buffer)
                                 candidates = obj.get('candidates', [])
@@ -77,14 +74,10 @@ class SXNGPlugin(Plugin):
                                     if parts:
                                         text = parts[0].get('text', '')
                                         if text: yield text
-                                
                                 buffer = buffer[idx:]
-                            except json.JSONDecodeError:
-                                break
-                                
+                            except json.JSONDecodeError: break
                     conn.close()
-                except Exception:
-                    pass
+                except Exception: pass
 
             def generate_openrouter():
                 try:
@@ -108,7 +101,7 @@ class SXNGPlugin(Plugin):
 
                     buffer = ""
                     while True:
-                        chunk = res.read(1024)
+                        chunk = res.read(128)
                         if not chunk: break
                         buffer += chunk.decode('utf-8')
                         while "\n" in buffer:
@@ -142,7 +135,22 @@ class SXNGPlugin(Plugin):
         js_q = json.dumps(search.search_query.query)
 
         html_payload = f'''
-        <article id="sxng-stream-box" class="answer" style="display:none; margin-bottom: 1rem;">
+        <style>
+            #sxng-stream-box {{ 
+                display: none !important; 
+                padding: 1rem !important; 
+                margin-top: 0 !important; 
+                margin-bottom: 1.5rem !important;
+                border-bottom: 1px solid var(--color-result-border);
+            }}
+            #sxng-stream-data {{ 
+                margin: 0 !important; 
+                line-height: 1.6; 
+                font-size: 0.95rem;
+                color: var(--color-result-description);
+            }}
+        </style>
+        <article id="sxng-stream-box" class="answer">
             <p id="sxng-stream-data" style="white-space: pre-wrap;"></p>
         </article>
         <script>
@@ -171,7 +179,9 @@ class SXNGPlugin(Plugin):
                     
                     const chunk = decoder.decode(value);
                     if (chunk) {{
-                        if (shell.style.display === 'none') shell.style.display = 'block';
+                        if (shell.style.getPropertyValue('display') !== 'block') {{
+                            shell.style.setProperty('display', 'block', 'important');
+                        }}
                         data.innerText += chunk;
                     }}
                 }}
