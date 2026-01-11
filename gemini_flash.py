@@ -1,4 +1,4 @@
-import json, http.client, ssl, os, logging, base64, secrets, time
+import json, http.client, ssl, os, logging, base64, secrets, time, hashlib
 from flask import Response, request, abort
 from searx.plugins import Plugin, PluginInfo
 from searx.result_types import EngineResults
@@ -24,25 +24,24 @@ class SXNGPlugin(Plugin):
         self.max_tokens = int(os.getenv('GEMINI_MAX_TOKENS', 500))
         self.temperature = float(os.getenv('GEMINI_TEMPERATURE', 0.2))
         self.base_url = os.getenv('OPENROUTER_BASE_URL', 'openrouter.ai')
-        self.valid_tokens = {}
+        self.secret = os.getenv('SXNG_LLM_SECRET', secrets.token_hex(32))
 
     def init(self, app):
         @app.route('/gemini-stream', methods=['POST'])
         def g_stream():
             data = request.json or {}
             token = data.get('tk', '')
+            q = data.get('q', '')
             
-            # Maintenance: Token validation & cleanup
-            now = time.time()
-            self.valid_tokens = {k: v for k, v in self.valid_tokens.items() if v > now}
-            
-            if token not in self.valid_tokens:
-                abort(403)
-            del self.valid_tokens[token]
+            try:
+                ts, sig = token.split('.')
+                query_clean = q.strip()
+                expected = hashlib.sha256(f"{ts}|{query_clean}|{self.secret}".encode()).hexdigest()
+                if sig != expected or (time.time() - float(ts)) > 60:
+                    abort(403)
+            except: abort(403)
 
             context_text = data.get('context', '')
-            q = data.get('q', '')
-
             if not self.api_key or not q:
                 return Response("Error: Missing Key or Query", status=400)
 
@@ -141,12 +140,13 @@ class SXNGPlugin(Plugin):
         context_list = [f"[{i+1}] {r.get('title')}: {r.get('content')}" for i, r in enumerate(raw_results[:6])]
         context_str = "\n".join(context_list)
 
-        # Handshake token
-        tk = secrets.token_hex(16)
-        self.valid_tokens[tk] = time.time() + 60
+        ts = str(time.time())
+        q_clean = search.search_query.query.strip()
+        sig = hashlib.sha256(f"{ts}|{q_clean}|{self.secret}".encode()).hexdigest()
+        tk = f"{ts}.{sig}"
 
         b64_context = base64.b64encode(context_str.encode('utf-8')).decode('utf-8')
-        js_q = json.dumps(search.search_query.query)
+        js_q = json.dumps(q_clean)
 
         html_payload = f'''
         <style>
@@ -170,7 +170,6 @@ class SXNGPlugin(Plugin):
             const tk = "{tk}";
             const shell = document.getElementById('sxng-stream-box');
             const data = document.getElementById('sxng-stream-data');
-            const loading = document.getElementById('sxng-loading');
             
             const container = document.getElementById('urls') || document.getElementById('main_results');
             if (container && shell) {{ container.prepend(shell); shell.style.display = 'block'; }}

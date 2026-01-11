@@ -114,10 +114,16 @@ class PluginTestCase(unittest.TestCase):
         self.assertIn('/gemini-stream', content)
 
     def test_stream_endpoint(self):
-        # Trigger index to generate a token in the plugin instance
-        self.app.get('/')
-        # Extract the last generated token
-        token = list(plugin.valid_tokens.keys())[-1]
+        # Trigger index to generate a response containing the token
+        response = self.app.get('/')
+        content = response.data.decode('utf-8')
+        
+        # Extract the token from the injected script (tk = "...")
+        import re
+        match = re.search(r'const tk = "(.*?)";', content)
+        if not match:
+            self.fail("Handshake token not found in injection")
+        token = match.group(1)
 
         # Check for the appropriate key based on provider
         key = os.getenv("OPENROUTER_API_KEY") if plugin.provider == 'openrouter' else os.getenv("GEMINI_API_KEY")
