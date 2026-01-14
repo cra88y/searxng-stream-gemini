@@ -37,7 +37,7 @@ sys.modules["searx"] = searx
 sys.modules["searx.plugins"] = searx_plugins
 sys.modules["searx.result_types"] = searx_results
 
-from gemini_flash import SXNGPlugin
+from ai_answers import SXNGPlugin
 from flask_babel import Babel
 
 app = Flask(__name__)

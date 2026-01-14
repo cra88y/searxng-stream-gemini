@@ -12,7 +12,7 @@ TOKEN_EXPIRY_SEC = 60
 CONNECTION_TIMEOUT_SEC = 30
 
 class SXNGPlugin(Plugin):
-    id = "gemini_flash"
+    id = "ai_answers"
 
     def __init__(self, plg_cfg):
         super().__init__(plg_cfg)
