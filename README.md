@@ -22,4 +22,4 @@ Set the following environment variables:
 
 ## Installation
 
-Place `gemini_flash.py` into the `searx/plugins` directory of your instance and enable it in `settings.yml`.
+Place `gemini_flash.py` into the `searx/plugins` directory of your instance (or mount it in a container) and enable it in `settings.yml` with a new plugin block setting it to active.
