@@ -190,6 +190,8 @@ class SXNGPlugin(Plugin):
                     const tk = "{tk}";
                     const box = document.getElementById('sxng-stream-box');
                     const data = document.getElementById('sxng-stream-data');
+                    const wrapper = box.closest('.answer');
+                    if (wrapper) wrapper.style.display = 'none';
                     
                     try {{
                         const ctx = new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
@@ -199,7 +201,7 @@ class SXNGPlugin(Plugin):
                             body: JSON.stringify({{ q: q, context: ctx, tk: tk }})
                         }});
                         
-                        if (!res.ok) {{ box.remove(); return; }}
+                        if (!res.ok) {{ if (wrapper) wrapper.remove(); else box.remove(); return; }}
 
                         const reader = res.body.getReader();
                         const decoder = new TextDecoder();
@@ -218,6 +220,7 @@ class SXNGPlugin(Plugin):
                                     text = text.replace(/^[\\s.,;:!?]+/, '');
                                     if (!text) continue;
                                     data.appendChild(cursor);
+                                    if (wrapper) wrapper.style.display = '';
                                     box.style.display = 'block';
                                     started = true; 
                                 }}
@@ -225,8 +228,8 @@ class SXNGPlugin(Plugin):
                             }}
                         }}
                         cursor.remove();
-                        if (!started) box.remove();
-                    }} catch (e) {{ console.error(e); box.remove(); }}
+                        if (!started) {{ if (wrapper) wrapper.remove(); else box.remove(); }}
+                    }} catch (e) {{ console.error(e); if (wrapper) wrapper.remove(); else box.remove(); }}
                 }})();
                 </script>
             </article>
