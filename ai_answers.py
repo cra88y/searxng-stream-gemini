@@ -39,10 +39,10 @@ class SXNGPlugin(Plugin):
             self.secret = os.getenv('SXNG_LLM_SECRET') or hashlib.sha256(self.api_key.encode()).hexdigest()
         else:
             self.secret = os.getenv('SXNG_LLM_SECRET', '')
-            logger.warning("Gemini Flash plugin: No API key configured, plugin will be inactive")
+            logger.warning("AI Answers plugin: No API key configured, plugin will be inactive")
 
     def init(self, app):
-        @app.route('/gemini-stream', methods=['POST'])
+        @app.route('/ai-stream', methods=['POST'])
         def g_stream():
             data = request.json or {}
             token = data.get('tk', '')
@@ -149,7 +149,12 @@ class SXNGPlugin(Plugin):
                 except Exception as e: logger.error(f"OpenRouter Stream Exception: {e}")
 
             generator = generate_openrouter if self.provider == 'openrouter' else generate_gemini
-            return Response(generator(), mimetype='text/plain', headers={'X-Accel-Buffering': 'no'})
+            return Response(generator(), mimetype='text/event-stream', headers={
+                'X-Accel-Buffering': 'no',
+                'Cache-Control': 'no-cache, no-store',
+                'Connection': 'keep-alive',
+                'Content-Encoding': 'identity'
+            })
         return True
 
     def post_search(self, request, search) -> EngineResults:
@@ -195,7 +200,7 @@ class SXNGPlugin(Plugin):
                     
                     try {{
                         const ctx = new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
-                        const res = await fetch('/gemini-stream', {{
+                        const res = await fetch('/ai-stream', {{
                             method: 'POST',
                             headers: {{ 'Content-Type': 'application/json' }},
                             body: JSON.stringify({{ q: q, context: ctx, tk: tk }})
