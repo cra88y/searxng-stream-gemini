@@ -1,6 +1,7 @@
 # AI Answers for SearXNG
+**Does not block result loading time.**
 
-A SearXNG plugin that streams AI responses using search results as grounding context. Supports Google Gemini and OpenAI-compatible providers (OpenRouter, Ollama, etc.).
+A SearXNG plugin that generates an AI answer using search results as RAG grounding context. Supports Google Gemini and OpenAI-compatible providers (OpenRouter, Ollama, etc.).
 
 ## Installation
 
