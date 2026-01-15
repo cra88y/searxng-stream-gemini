@@ -26,6 +26,10 @@ Set the following environment variables:
 - `RESPONSE_MAX_TOKENS`: Defaults to `500`.
 - `RESPONSE_TEMPERATURE`: Defaults to `0.2`.
 
+## Change language of AI answers
+
+- `LLM_LANGUAGE`: `english` (default) or `german`,`french` or any other language.
+
 ### OpenRouter / OpenAI / Ollama
 
 - `OPENROUTER_API_KEY`: Your API key.
