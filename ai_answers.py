@@ -25,6 +25,7 @@ class SXNGPlugin(Plugin):
         self.provider = os.getenv('LLM_PROVIDER', 'openrouter').lower()
         self.api_key = os.getenv('OPENROUTER_API_KEY') if self.provider == 'openrouter' else os.getenv('GEMINI_API_KEY')
         self.model = os.getenv('GEMINI_MODEL', 'gemma-3-27b-it') if self.provider == 'gemini' else os.getenv('OPENROUTER_MODEL', 'google/gemma-3-27b-it:free')
+        self.language = os.getenv('LLM_LANGUAGE', 'english').lower()
         try:
             self.max_tokens = int(os.getenv('RESPONSE_MAX_TOKENS', 500))
         except ValueError:
@@ -63,6 +64,7 @@ class SXNGPlugin(Plugin):
 
             prompt = (
                 f"SYSTEM: Answer USER QUERY by integrating SEARCH RESULTS with expert knowledge.\n"
+                f"LANGUAGE: You must answer in {self.language}.\n"
                 f"HIERARCHY: Use RESULTS for facts/data. Use KNOWLEDGE for context/synthesis.\n"
                 f"CONSTRAINTS: <4 sentences | Dense information | Complete thoughts.\n"
                 f"FALLBACK: If results are empty, answer from knowledge but note the lack of sources.\n\n"
