@@ -2,7 +2,7 @@
 
 **Does not block result loading time.**
 
-A SearXNG plugin that generates an AI answer using search results as RAG grounding context. Supports Google Gemini and OpenAI-compatible providers (OpenRouter, Ollama, etc.).  
+A SearXNG plugin that generates an AI answer using search results as RAG grounding context. Supports Google Gemini and OpenAI-compatible providers (OpenRouter, Ollama, OpenAI API etc.).  
 
 Features token by token UI updates as response is recieved.
 
@@ -22,15 +22,15 @@ Set the following environment variables:
 
 ### General
 
-- `LLM_PROVIDER`: `openrouter` (default) or `gemini`.
+- `LLM_PROVIDER`: `openrouter` (default) or `gemini`. (openrouter for all OpenAI APIs)
 - `RESPONSE_MAX_TOKENS`: Defaults to `500`.
 - `RESPONSE_TEMPERATURE`: Defaults to `0.2`.
 
-### OpenRouter / OpenAI / Ollama
-
-- `OPENROUTER_API_KEY`: Your API key.
+### OpenRouter / OpenAI / Ollama  
+(for any OpenAI compatible API, will revise naming clarity in update soon)
+- `OPENROUTER_API_KEY`: Your API key. 
 - `OPENROUTER_MODEL`: Defaults to `google/gemma-3-27b-it:free`.
-- `OPENROUTER_BASE_URL`: Defaults to `openrouter.ai`. (Change to `localhost:11434` for Ollama).
+- `OPENROUTER_BASE_URL`: Defaults to `openrouter.ai`. (Change to `localhost:11434` for Ollama, or base url of target OpenAI-compatible API).
 
 ### Google Gemini
 
