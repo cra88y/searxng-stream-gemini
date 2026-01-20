@@ -2,9 +2,9 @@
 
 **Does not block result loading time.**
 
-A SearXNG plugin that generates an AI answer using search results as RAG grounding context. Supports Google Gemini and OpenAI-compatible providers (OpenRouter, Ollama, OpenAI API etc.).  
+A SearXNG plugin that generates AI answers using search results as RAG context. Supports 8 LLM providers.
 
-Features token by token UI updates as response is recieved.
+Features token-by-token streaming and clickable inline citations.
 
 ## Installation
 
@@ -20,32 +20,74 @@ plugins:
 
 Set the following environment variables:
 
-### General
+### Required
 
-- `LLM_PROVIDER`: `openrouter` (default) or `gemini`. (openrouter for all OpenAI APIs)
-- `RESPONSE_MAX_TOKENS`: Defaults to `500`.
-- `RESPONSE_TEMPERATURE`: Defaults to `0.2`.
+- `LLM_PROVIDER`: openrouter, openai, ollama, localai, lmstudio, gemini, azure, or huggingface
+- `LLM_KEY`: Your API key
 
-### OpenRouter / OpenAI / Ollama  
-(for any OpenAI compatible API, will revise naming clarity in update soon)
-- `OPENROUTER_API_KEY`: Your API key. 
-- `OPENROUTER_MODEL`: Defaults to `google/gemma-3-27b-it:free`.
-- `OPENROUTER_BASE_URL`: Defaults to `openrouter.ai`. (Change to `localhost:11434` for Ollama, or base url of target OpenAI-compatible API).
+### Optional
 
-### Google Gemini
-
-- `GEMINI_API_KEY`: Your Google AI API key.
-- `GEMINI_MODEL`: Defaults to `gemma-3-27b-it`.
+- `LLM_MODEL`: Model identifier. Defaults vary by provider.
+- `LLM_URL`: Custom endpoint URL. Overrides provider preset.
+- `LLM_MAX_TOKENS`: Defaults to `500`.
+- `LLM_TEMPERATURE`: Defaults to `0.2`.
+- `LLM_CONTEXT_COUNT`: Search results to include. Defaults to `5`.
+- `LLM_TABS`: Comma-separated tab whitelist. Defaults to general,science,it,news.
+- `LLM_STYLE`: UI mode. Set to "simple" for no interactive controls (copy, regenerate, follow up, continue). Defaults to simple.
 
 ## How It Works
 
-After search completes, the plugin extracts the top 6 results as context. A client-side script calls the stream endpoint with a signed token. The LLM response streams back. Token by token rendering is soon.
+After search completes, the plugin extracts top search results as context. A client-side script calls the stream endpoint with a signed token. The LLM response streams back token by token.
 
-## Ollama (Local)
+## Examples
 
+### OpenRouter
 ```
 LLM_PROVIDER=openrouter
-OPENROUTER_API_KEY=ollama
-OPENROUTER_MODEL=gemma3:27b
-OPENROUTER_BASE_URL=localhost:11434
+LLM_KEY=sk-or-xxx
+LLM_MODEL=google/gemma-3-27b-it:free
+```
+
+### Ollama (Local)
+```
+LLM_PROVIDER=ollama
+LLM_KEY=ollama
+LLM_MODEL=llama3.2
+```
+
+### LocalAI
+```
+LLM_PROVIDER=localai
+LLM_KEY=your-key
+LLM_MODEL=gpt-4
+LLM_URL=http://localai.lan:8080/v1/chat/completions
+```
+
+### Gemini
+```
+LLM_PROVIDER=gemini
+LLM_KEY=AIzaSy...
+LLM_MODEL=gemma-3-27b-it
+```
+
+### Azure
+```
+LLM_PROVIDER=azure
+LLM_KEY=your-api-key
+LLM_URL=https://your-resource.openai.azure.com/openai/deployments/your-deployment/chat/completions?api-version=2024-02-01
+```
+
+### Hugging Face
+```
+LLM_PROVIDER=huggingface
+LLM_KEY=hf_xxx
+LLM_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
+```
+
+## Development
+
+```bash
+pip install flask flask-babel python-dotenv
+python demo.py   # Interactive test server on localhost:5000
+python test.py   # One-shot test suite
 ```
