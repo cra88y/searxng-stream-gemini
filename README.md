@@ -38,7 +38,7 @@ Set the following environment variables:
 - `LLM_TEMPERATURE`: Defaults to `0.2`.
 - `LLM_CONTEXT_COUNT`: Search results to include. Defaults to `5`.
 - `LLM_TABS`: Comma-separated tab whitelist. Defaults to general,science,it,news.
-- `LLM_STYLE`: UI mode. Set to "simple" for no interactive controls (copy, regenerate, follow up, continue). Defaults to simple.
+- `LLM_STYLE`: UI mode. Set to "interactive" for interactive controls (copy, regenerate, follow up, continue). Defaults to "simple".
 
 ## How It Works
 
