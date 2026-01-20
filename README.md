@@ -1,10 +1,15 @@
-# AI Answers for SearXNG
+# AI Answers Plugin for SearXNG  
+**Single file install**
+**Does not block result loading time**
 
-**Does not block result loading time.**
+A SearXNG plugin that generates AI answers using search results as RAG context. Supports 8+ LLM providers.
 
-A SearXNG plugin that generates AI answers using search results as RAG context. Supports 8 LLM providers.
+Features:
+- token-by-token UI streaming
+- clickable inline citations
+- interactive mode to continue summary, ask follow ups, copy, or regenerate
+- simple response mode with no extras
 
-Features token-by-token streaming and clickable inline citations.
 
 ## Installation
 
