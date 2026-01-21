@@ -9,6 +9,10 @@ Features:
 - clickable inline citations
 - interactive mode to continue summary, ask follow ups, copy, or regenerate
 - simple response mode with no extras
+- internally called low-latency RAG for follow ups (bypasses http loopback)
+- native network integration via `searx.network` (respects proxy/SSL settings)
+- stateless conversation persistence/sharability via URL
+- provider detection based on URL
 
 
 ## Installation
@@ -23,26 +27,32 @@ plugins:
 
 ## Configuration
 
-Set the following environment variables:
+Configure via the environment variables:
 
 ### Required
 
 - `LLM_PROVIDER`: openrouter, openai, ollama, localai, lmstudio, gemini, azure, or huggingface
-- `LLM_KEY`: Your API key
+- `LLM_KEY`: Provider API key (optional for local providers: ollama, localai, lmstudio)
 
 ### Optional
 
-- `LLM_MODEL`: Model identifier. Defaults vary by provider.
-- `LLM_URL`: Custom endpoint URL. Overrides provider preset.
-- `LLM_MAX_TOKENS`: Defaults to `500`.
-- `LLM_TEMPERATURE`: Defaults to `0.2`.
-- `LLM_CONTEXT_COUNT`: Search results to include. Defaults to `5`.
-- `LLM_TABS`: Comma-separated tab whitelist. Defaults to general,science,it,news.
-- `LLM_STYLE`: UI mode. Set to "interactive" for interactive controls (copy, regenerate, follow up, continue). Defaults to "simple".
+- `LLM_MODEL`: Model identifier. Defaults vary. Recommended: 10-30B dense or 5-15B MoE activated.
+- `LLM_URL`: Overrides endpoint URL for any provider preset.
+- `LLM_MAX_TOKENS`: Default `500`.
+- `LLM_TEMPERATURE`: Default `0.2`.
+- `LLM_CONTEXT_DEEP_COUNT`: results as context with full snippets. Default `5`.
+- `LLM_CONTEXT_SHALLOW_COUNT`: Results with headlines only (additional breadth). Default `15`.
+- `LLM_TABS`: Tab whitelist, comma delimiter. Default `general,science,it,news`.
+- `LLM_INTERACTIVE`: UI mode. Default is `true` (interactive: copy, regenerate, follow up). Set to `false` for simple response only mode.
 
 ## How It Works
-
-After search completes, the plugin extracts top search results as context. A client-side script calls the stream endpoint with a signed token. The LLM response streams back token by token.
+1 user initial search 
+2 results return server side 
+3 `post_search` plugin hook entry
+4 token optimized context extracted 
+5 inject the ui/logic "shell" into standard results answer object 
+6 client side script calls custom endpoint with signed token
+7 LLM response streams back token by token
 
 ## Examples
 
@@ -92,7 +102,7 @@ LLM_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
 ## Development
 
 ```bash
-pip install flask flask-babel python-dotenv
-python demo.py   # Interactive test server on localhost:5000
-python test.py   # One-shot test suite
+pip install flask flask-babel
+python tests/demo.py   # Interactive demo at localhost:5000
+python tests/test.py   # One-shot test suite
 ```
