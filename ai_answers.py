@@ -526,53 +526,24 @@ class SXNGPlugin(Plugin):
                 'publishedDate': r.get('publishedDate', '')
             })
         
+        # SearXNG already merges infoboxes by ID - take first with full content
         infoboxes = []
-        for ib in raw_infoboxes[:2]:
+        for ib in raw_infoboxes[:1]:
             infoboxes.append({
                 'name': ib.get('infobox', '') or ib.get('title', ''),
-                'content': ib.get('content', '')[:400],
-                'attributes': ib.get('attributes', [])[:3]
+                'content': ib.get('content', '')[:2000],
+                'attributes': ib.get('attributes', [])
             })
             
-        answers = [a.get('answer', '') for a in raw_answers[:2] 
-                   if a.get('answer') and not str(a.get('answer')).startswith('<')]
+        # Only extract simple Answer types (skip Translations, WeatherAnswer etc.)
+        answers = []
+        for a in list(raw_answers)[:2]:
+            if hasattr(a, 'answer') and isinstance(getattr(a, 'answer', None), str):
+                answers.append(a.answer)
+            elif isinstance(a, dict) and a.get('answer'):
+                answers.append(str(a['answer']))
                    
         return results, infoboxes, answers
-
-    def _format_aux_context_string(self, results, infoboxes, answers, offset):
-        sections = []
-        aux_urls = []
-        
-        kg_lines = []
-        for ib in infoboxes:
-            if ib.get('name'):
-                content = ib.get('content', '')
-                kg_lines.append(f"INFOBOX [{ib['name']}]: {content}")
-        
-        for a in answers:
-            if a:
-                kg_lines.append(f"ANSWER: {a}")
-                
-        if kg_lines:
-            sections.append('KNOWLEDGE GRAPH:\n' + '\n'.join(kg_lines))
-            
-        source_lines = []
-        for i, r in enumerate(results):
-            url = r.get('url', '')
-            aux_urls.append(url)
-            # Match JS logic: domain extraction
-            domain = urlparse(url).netloc.replace('www.', '')
-            date = f" ({r['publishedDate']})" if r.get('publishedDate') else ''
-            title = r.get('title', '')
-            content = r.get('content', '')[:600]
-            # [index] domain(date): title: content
-            idx = i + 1 + offset
-            source_lines.append(f"[{idx}] {domain}{date}: {title}: {content}")
-            
-        if source_lines:
-            sections.append('SOURCES:\n' + '\n'.join(source_lines))
-            
-        return "\n\n".join(sections), aux_urls
 
 
 
@@ -625,7 +596,7 @@ class SXNGPlugin(Plugin):
                 
                 results, infoboxes, answers = self._parse_aux_results(raw_results, raw_infoboxes, raw_answers)
                 
-                context_str, new_urls = self._format_aux_context_string(results, infoboxes, answers, offset)
+                context_str, new_urls = self._assemble_context(results, infoboxes, answers, offset)
 
                 return jsonify({
                     'context': context_str,
@@ -663,7 +634,7 @@ class SXNGPlugin(Plugin):
                         search_data.get('answers', [])
                     )
                     
-                    context_str, new_urls = self._format_aux_context_string(results, infoboxes, answers, offset)
+                    context_str, new_urls = self._assemble_context(results, infoboxes, answers, offset)
 
                     return jsonify({
                         'context': context_str,
@@ -858,19 +829,22 @@ class SXNGPlugin(Plugin):
             })
         return True
 
-    def _assemble_context(self, search, raw_results) -> str:
-        """Builds three-tier context string from search results."""
+    def _assemble_context(self, raw_results, infoboxes, answers, offset=0) -> tuple[str, list]:
+        """Builds context string from normalized search data. Returns (context_str, urls)."""
         context_parts = []
+        result_urls = []
+        
+        # Knowledge graph
         knowledge_graph_lines = []
-        for infobox in getattr(search.result_container, 'infoboxes', [])[:3]:
-            ib_name = infobox.get('infobox', '') or infobox.get('title', '')
-            ib_content = str(infobox.get('content', '')).replace('\n', ' ').strip()
+        for ib in infoboxes:
+            ib_name = ib.get('name', '') or ib.get('infobox', '') or ib.get('title', '')
+            ib_content = str(ib.get('content', '')).replace('\n', ' ').strip()
             
             if ib_name:
                 parts = [f"INFOBOX [{ib_name}]:"]
                 if ib_content:
-                    parts.append(ib_content[:600])
-                for attr in infobox.get('attributes', [])[:5]:
+                    parts.append(ib_content)
+                for attr in ib.get('attributes', []):
                     attr_label = attr.get('label', '')
                     attr_value = attr.get('value', '')
                     if attr_label and attr_value:
@@ -878,41 +852,46 @@ class SXNGPlugin(Plugin):
                 
                 knowledge_graph_lines.append(" ".join(parts) if len(parts) == 2 else "\n".join(parts))
 
-        for answer in getattr(search.result_container, 'answers', []):
-            if hasattr(answer, 'answer'):
-                ans_text = str(answer.answer).replace('\n', ' ').strip()[:300]
-                ans_url = getattr(answer, 'url', '')
-                if ans_text and not ans_text.startswith('<'):
-                    knowledge_graph_lines.append(f"ANSWER: {ans_text}" + (f" [via {ans_url}]" if ans_url else ""))
+        for ans_text in answers:
+            if ans_text and not str(ans_text).startswith('<'):
+                knowledge_graph_lines.append(f"ANSWER: {str(ans_text)[:300]}")
         
         if knowledge_graph_lines:
             context_parts.append("KNOWLEDGE GRAPH:\n" + "\n".join(knowledge_graph_lines))
         
+        # Deep sources: full content
         deep_lines = []
         for i, r in enumerate(raw_results[:self.context_deep_count]):
-            domain = urlparse(r.get('url', '')).netloc
+            url = r.get('url', '')
+            result_urls.append(url)
+            domain = urlparse(url).netloc.replace('www.', '')
             date = r.get('publishedDate')
             date_str = f" ({date})" if date else ""
             title = (r.get('title') or "").replace('\n', ' ').strip()
             content = str(r.get('content', '')).replace('\n', ' ').strip()[:800]
-            deep_lines.append(f"[{i+1}] {domain}{date_str}: {title}: {content}")
+            idx = i + 1 + offset
+            deep_lines.append(f"[{idx}] {domain}{date_str}: {title}: {content}")
         
         if deep_lines:
             context_parts.append("DEEP SOURCES:\n" + "\n".join(deep_lines))
             
+        # Shallow sources: headlines only
         if self.context_shallow_count > 0:
             shallow_lines = []
             start_idx = self.context_deep_count
             end_idx = self.context_deep_count + self.context_shallow_count
             for i, r in enumerate(raw_results[start_idx:end_idx]):
-                domain = urlparse(r.get('url', '')).netloc.replace('www.', '')
+                url = r.get('url', '')
+                result_urls.append(url)
+                domain = urlparse(url).netloc.replace('www.', '')
                 title = (r.get('title') or '').replace('\n', ' ').strip()[:60]
-                shallow_lines.append(f"[{i+1+start_idx}] {domain}: {title}")
+                idx = i + 1 + start_idx + offset
+                shallow_lines.append(f"[{idx}] {domain}: {title}")
             
             if shallow_lines:
                 context_parts.append("SHALLOW SOURCES (headlines):\n" + "\n".join(shallow_lines))
         
-        return "\n\n".join(context_parts)
+        return "\n\n".join(context_parts), result_urls
 
     def post_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> EngineResults:
         results = EngineResults()
@@ -927,7 +906,12 @@ class SXNGPlugin(Plugin):
                 return results
 
             raw_results = search.result_container.get_ordered_results()
-            context_str = self._assemble_context(search, raw_results)
+            raw_infoboxes = getattr(search.result_container, 'infoboxes', [])
+            raw_answers = getattr(search.result_container, 'answers', [])
+            
+            # Normalize for unified context assembly
+            _, infoboxes, answers = self._parse_aux_results(raw_results, raw_infoboxes, raw_answers)
+            context_str, _ = self._assemble_context(raw_results, infoboxes, answers)
 
 
             ts = str(int(time.time()))

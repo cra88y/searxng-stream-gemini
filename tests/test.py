@@ -259,6 +259,7 @@ def run_tests():
             class MockResultContainer:
                 def __init__(self):
                     self.answers = set()
+                    self.infoboxes = []
                 def get_ordered_results(self):
                     return [
                         {"title": "T1", "content": "C1", "url": "https://a.com/1", "publishedDate": "2026-01-15"},
